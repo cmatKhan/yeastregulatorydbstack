@@ -3,26 +3,41 @@ import os
 
 import aws_cdk as cdk
 
-from yeastregulatorydbstack.yeastregulatorydbstack_stack import YeastregulatorydbstackStack
-
+from yeastregulatorydbstack import (ALBStack, RDSStack, RedisStack, RolesStack,
+                                    SecurityGroupStack, TargetGroupStack,
+                                    VPCStack)
 
 app = cdk.App()
-YeastregulatorydbstackStack(app, "YeastregulatorydbstackStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+common_kwargs = {
+    "app_tag_name": "app",
+    "app_tag_value": "yeastregulatorydb",
+}
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+ssl_arn = "arn:aws:acm:us-east-2:040367161929:certificate/63b33893-d593-4ae0-8f34-c09b2ee96cad"
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+vpc_stack = VPCStack(app, "VPCStack", **common_kwargs)
 
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
+securitygroup_stack = SecurityGroupStack(
+    app, "SecurityGroupStack", vpc_stack.vpc, **common_kwargs
+)
 
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+targetgroup_stack = TargetGroupStack(
+    app, "TargetGroupStack", vpc_stack.vpc, **common_kwargs
+)
+
+alb_stack = ALBStack(
+    app,
+    "ALBStack",
+    vpc_stack.vpc,
+    ssl_arn,
+    targetgroup_stack.django_target_group,
+    targetgroup_stack.flower_target_group,
+    alb_security_groups=securitygroup_stack.alb_security_group,
+    **common_kwargs
+)  # os.environ["SSL_CERTIFICATE_ARN", ssl_arn]
+
+roles_stack = RolesStack(app, "RolesStack",  **common_kwargs)
+
 
 app.synth()

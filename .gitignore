@@ -1,3 +1,6 @@
+# local
+params.json
+
 *.swp
 package-lock.json
 __pycache__
