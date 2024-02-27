@@ -39,5 +39,13 @@ alb_stack = ALBStack(
 
 roles_stack = RolesStack(app, "RolesStack",  **common_kwargs)
 
+redis_stack = RedisStack(
+    app,
+    "RedisStack",
+    vpc_stack.vpc,
+    securitygroup_stack.redis_sg,
+    **common_kwargs
+)
+
 
 app.synth()

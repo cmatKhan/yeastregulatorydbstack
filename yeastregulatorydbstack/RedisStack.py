@@ -32,7 +32,7 @@ class RedisStack(Stack):
             engine="redis",
             num_cache_nodes=1,
             cache_subnet_group_name=subnet_group.ref,
-            vpc_security_group_ids=[redis_security_group_id],
+            vpc_security_group_ids=[redis_security_group_id.security_group_id],
         )
 
         for resource in [self.cache_cluster, subnet_group]:
