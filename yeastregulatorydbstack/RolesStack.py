@@ -13,28 +13,6 @@ class RolesStack(Stack):
         # call the parent constructor
         super().__init__(scope, id, **kwargs)
 
-        # MyDBProxyRole
-        self.db_proxy_role = aws_iam.Role(
-            self,
-            "MyDBProxyRole",
-            assumed_by=aws_iam.ServicePrincipal("rds.amazonaws.com"),
-            description="Allows RDS to assume for DB Proxy",
-            inline_policies={
-                "RDSProxyPolicy": aws_iam.PolicyDocument(
-                    statements=[
-                        aws_iam.PolicyStatement(
-                            actions=[
-                                "secretsmanager:GetSecretValue",
-                                "secretsmanager:DescribeSecret",
-                            ],
-                            resources=["*"],
-                            effect=aws_iam.Effect.ALLOW,
-                        )
-                    ]
-                )
-            },
-        )
-
         # ExecutionRole
         self.execution_role = aws_iam.Role(
             self,
@@ -88,6 +66,11 @@ class RolesStack(Stack):
                                 "logs:CreateLogGroup",
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
+                                "ssmessages:CreateControlChannel",
+                                "ssmessages:CreateDataChannel",
+                                "ssmessages:OpenControlChannel",
+                                "ssmessages:OpenDataChannel",
+                                "ssmessages:0",
                             ],
                             resources=["*"],
                             effect=aws_iam.Effect.ALLOW,
@@ -97,5 +80,5 @@ class RolesStack(Stack):
             },
         )
 
-        for resource in [self.db_proxy_role, self.execution_role, self.task_role]:
+        for resource in [self.execution_role, self.task_role]:
             Tags.of(resource).add(app_tag_name, app_tag_value)

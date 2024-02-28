@@ -1,12 +1,5 @@
-from aws_cdk import (
-    CfnOutput,
-    Stack,
-    Tags,
-    aws_ec2,
-    aws_iam,
-    aws_rds,
-    aws_secretsmanager,
-)
+from aws_cdk import (CfnOutput, Stack, Tags, aws_ec2, aws_iam, aws_rds,
+                     aws_secretsmanager)
 from constructs import Construct
 
 
@@ -16,7 +9,7 @@ class RDSStack(Stack):
         scope: Construct,
         id: str,
         vpc: aws_ec2.IVpc,
-        db_proxy_role: aws_iam.Role,
+        postgres_sg: aws_ec2.SecurityGroup,
         **kwargs
     ):
         """Create a PostgreSQL RDS instance and RDS Proxy
@@ -35,11 +28,9 @@ class RDSStack(Stack):
         :param id: See VPCStack class docstring for more information.
         :type id: str
         :param vpc: See SecurityGroupStack class docstring for more information.
-        :type vpc: aws_ec2.IVpc
-        :param db_proxy_role: The IAM role for the RDS Proxy. This will likely
-            be the role created in the RolesStack. `db_proxy_role` is an
-            attribute of an instance of RolesStack.
-        :type db_proxy_role: aws_iam.Role
+        :type vpc: aws_ec2.Vpc
+        :param postgres_sg: The security group for the RDS instance.
+        :type postgres_sg: aws_ec2.SecurityGroup
         """
 
         app_tag_name = kwargs.pop("app_tag_name", "app")
@@ -47,6 +38,28 @@ class RDSStack(Stack):
         max_connections = kwargs.pop("max_connections", "200")
 
         super().__init__(scope, id, **kwargs)
+
+        # MyDBProxyRole
+        self.db_proxy_role = aws_iam.Role(
+            self,
+            "MyDBProxyRole",
+            assumed_by=aws_iam.ServicePrincipal("rds.amazonaws.com"),
+            description="Allows RDS to assume for DB Proxy",
+            inline_policies={
+                "RDSProxyPolicy": aws_iam.PolicyDocument(
+                    statements=[
+                        aws_iam.PolicyStatement(
+                            actions=[
+                                "secretsmanager:GetSecretValue",
+                                "secretsmanager:DescribeSecret",
+                            ],
+                            resources=["*"],
+                            effect=aws_iam.Effect.ALLOW,
+                        )
+                    ]
+                )
+            },
+        )
 
         # DB Secret for storing the master username and password
         self.db_secret = aws_secretsmanager.Secret(
@@ -90,7 +103,7 @@ class RDSStack(Stack):
                 version=aws_rds.PostgresEngineVersion.VER_15_2
             ),
             instance_type=aws_ec2.InstanceType.of(
-                aws_ec2.InstanceClass.BURSTABLE2, aws_ec2.InstanceSize.MICRO
+                aws_ec2.InstanceClass.BURSTABLE3, aws_ec2.InstanceSize.MICRO
             ),
             vpc=vpc,
             credentials=aws_rds.Credentials.from_secret(self.db_secret),
@@ -100,15 +113,16 @@ class RDSStack(Stack):
         )
 
         # RDS Proxy
-        db_proxy = aws_rds.DatabaseProxy(
+        self.db_proxy = aws_rds.DatabaseProxy(
             self,
             "MyDBProxy",
             proxy_target=aws_rds.ProxyTarget.from_instance(db_instance),
             secrets=[self.db_secret],
             vpc=vpc,
-            role=db_proxy_role,
+            role=self.db_proxy_role,
             db_proxy_name="mydbproxy",
             require_tls=False,
+            security_groups=[postgres_sg]
         )
 
         for resource in [
@@ -116,7 +130,7 @@ class RDSStack(Stack):
             custom_parameter_group,
             db_subnet_group,
             db_instance,
-            db_proxy,
+            self.db_proxy,
         ]:
             Tags.of(resource).add(app_tag_name, app_tag_value)
 
@@ -124,4 +138,4 @@ class RDSStack(Stack):
         CfnOutput(
             self, "RDSInstanceEndpoint", value=db_instance.db_instance_endpoint_address
         )
-        CfnOutput(self, "RDSProxyEndpoint", value=db_proxy.endpoint)
+        CfnOutput(self, "RDSProxyEndpoint", value=self.db_proxy.endpoint)

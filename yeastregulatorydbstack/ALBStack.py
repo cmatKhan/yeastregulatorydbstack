@@ -76,7 +76,7 @@ class ALBStack(Stack):
         )
 
         # Add an HTTPS listener
-        https_listener = self.alb.add_listener(
+        self.https_listener = self.alb.add_listener(
             "HttpsListener",
             port=443,
             certificates=[
@@ -88,10 +88,10 @@ class ALBStack(Stack):
         )
 
         # Listener Rule for the Flower Dashboard
-        flower_rule = aws_elasticloadbalancingv2.ApplicationListenerRule(
+        self.flower_rule = aws_elasticloadbalancingv2.ApplicationListenerRule(
             self,
             "FlowerRule",
-            listener=https_listener,
+            listener=self.https_listener,
             priority=5,  # Ensure the priority does not conflict with other rules
             conditions=[
                 aws_elasticloadbalancingv2.ListenerCondition.host_headers(

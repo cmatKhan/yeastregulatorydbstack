@@ -46,7 +46,7 @@ class TargetGroupStack(Stack):
             target_type=aws_elasticloadbalancingv2.TargetType.IP,
             health_check=aws_elasticloadbalancingv2.HealthCheck(
                 protocol=aws_elasticloadbalancingv2.Protocol.HTTP,
-                path="/healthcheck",
+                path="/",
             ),
         )
 
@@ -60,7 +60,7 @@ class TargetGroupStack(Stack):
             target_type=aws_elasticloadbalancingv2.TargetType.IP,
             health_check=aws_elasticloadbalancingv2.HealthCheck(
                 protocol=aws_elasticloadbalancingv2.Protocol.HTTP,
-                path="/health",
+                path="/",
             ),
         )
 

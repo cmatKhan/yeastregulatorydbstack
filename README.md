@@ -57,11 +57,39 @@ command.
 
 ## Useful commands
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+* `cdk ls`          list all stacks in the app
+* `cdk synth`       emits the synthesized CloudFormation template
+* `cdk deploy`      deploy this stack to your default AWS account/region
+* `cdk diff`        compare deployed stack with current state
+* `cdk docs`        open CDK documentation
+
+## IMPORTANT CAVEATS
+
+Right now, the production `/start` script does not call migrate and as a
+result the database is not created. I have a workaround implemented where
+psql actually checks for the database and then creates it, but that doesn't
+create the user db, for instance. Better is to set up a one time task that
+executes before everything else and calls migrate, etc.
+
+Right now, because the task and django service are setup such that you can
+exec into the task, you can do this:
+
+```bash
+aws ecs execute-command --profile chasem --cluster DjangoAppCluster \
+                         --task $arn \
+                         --container django \
+                         --command "/bin/sh" \
+                         --interactive \
+                         --region us-east-2
+```
+
+where the `$arn` is the running task arn. Once there, you can do this:
+
+```bash
+/entrypoint python manage.py migrate`
+```
+
+or any other django management command.
 
 ## Lessons learned
 
@@ -77,3 +105,11 @@ command.
       inputs to another stack. This more explicitly defines the interface
       between Stack classes and allows those same Stack classes to be used
       across apps.
+
+1. Elasticache pricing: https://aws.amazon.com/elasticache/pricing/ and a price
+    calculator: https://calculator.aws/#/createCalculator/ElastiCache. Bottom
+    line is that the Redis elasticache cluster with the smallest instance should
+    be ~20 bucks a month
+
+1. To generate logs from the RDS DB proxy, set `debug_logging=True` and then
+    look in the cloudwatch log group for `/ecs/rds/proxy/<your-proxy-name>`.
